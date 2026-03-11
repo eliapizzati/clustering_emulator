@@ -340,6 +340,72 @@ def create_correlation_function(centres_1, box_size, h, centres_2=None, output="
         return bin_centers, corr
 
 
+def compute_one_halo_pair_counts(centres, host_ids, h,
+                                 lowest_r_bin=0.10, highest_r_bin=200.0, n_bins=51):
+    """
+    Count pairs of objects that share the same host halo (one-halo pairs).
+
+    The returned counts use the same logarithmic bins and Mpc/h convention as
+    Corrfunc, so they can be directly subtracted from DD_total["npairs"] to
+    isolate the two-halo pair counts.  The two-halo correlation function is then:
+
+        xi_2h(r) = (DD_total - DD_1h) / RR_analytical - 1
+
+    Parameters
+    ----------
+    centres : array-like, shape (3, N)
+        Positions of all objects in comoving Mpc.
+    host_ids : array-like, shape (N,)
+        Host halo identifier for each object.  Objects with the same host_id
+        are in the same halo and contribute to the one-halo term.
+    h : float
+        Dimensionless Hubble parameter. Positions are multiplied by h internally
+        to match Corrfunc's Mpc/h convention.
+    lowest_r_bin : float
+        Lower edge of the first radial bin in comoving Mpc.
+    highest_r_bin : float
+        Upper edge of the last radial bin in comoving Mpc.
+    n_bins : int
+        Number of logarithmic radial bins.
+
+    Returns
+    -------
+    counts_1h : ndarray of int64, shape (n_bins,)
+        One-halo pair counts per bin.  Each pair is counted twice (i→j and j→i),
+        matching Corrfunc's autocorrelation convention.
+    """
+    centres  = np.asarray(centres,  dtype=float)
+    host_ids = np.asarray(host_ids)
+
+    # Build bins in Mpc/h to match Corrfunc's internal convention.
+    rbins_h = np.logspace(np.log10(lowest_r_bin * h), np.log10(highest_r_bin * h), n_bins + 1)
+
+    counts_1h = np.zeros(n_bins, dtype=np.int64)
+
+    # Sort by host ID so groups become contiguous slices — avoids index-list construction.
+    order            = np.argsort(host_ids)
+    host_ids_sorted  = host_ids[order]
+    pos_h            = centres[:, order].T * h    # (N, 3) in Mpc/h
+
+    boundaries   = np.where(np.diff(host_ids_sorted))[0] + 1
+    group_starts = np.concatenate([[0], boundaries, [len(host_ids_sorted)]])
+
+    for s, e in zip(group_starts[:-1], group_starts[1:]):
+        n_sub = e - s
+        if n_sub < 2:
+            continue
+
+        p     = pos_h[s:e]                              # (n_sub, 3)
+        diff  = p[:, None, :] - p[None, :, :]           # (n_sub, n_sub, 3)
+        dists = np.sqrt((diff ** 2).sum(axis=-1))        # (n_sub, n_sub)
+        upper = dists[np.triu_indices(n_sub, k=1)]       # unique pairs only
+
+        c, _ = np.histogram(upper, bins=rbins_h)
+        counts_1h += 2 * c    # both directions, matching Corrfunc convention
+
+    return counts_1h
+
+
 def get_error_on_correlation(centres_1, box_size, h, centres_2=None, output="xi",
                              lowest_r_bin=0.10, highest_r_bin=200.0, n_bins=51,
                              number_of_side_slices=2, method="bootstrap",

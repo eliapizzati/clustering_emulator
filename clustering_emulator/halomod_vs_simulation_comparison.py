@@ -56,8 +56,8 @@ log_rbins_max = 1.6
 log_mass_threshold1 = 10.5
 log_mass_threshold2 = 12.0
 
-log_masses, centres, redshift = load_snapshot(snap_nr=39, source="machine_igm")
-x00, y00, z00 = centres[0], centres[1], centres[2]
+# log_masses, centres, redshift = load_snapshot(snap_nr=39, source="machine_igm")
+# x00, y00, z00 = centres[0], centres[1], centres[2]
 
 box_size = _BOXSIZE_MPC
 

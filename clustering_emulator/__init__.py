@@ -1,1 +1,1 @@
-from .compute_correlation import create_correlation_function, get_error_on_correlation
+from .compute_correlation import create_correlation_function, get_error_on_correlation, compute_one_halo_pair_counts

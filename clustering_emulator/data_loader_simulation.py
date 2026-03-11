@@ -23,7 +23,7 @@ _N_PART_SIDE  = 10080
 _SIM_NAME     = f"L{_BOXSIZE_MPC:04d}N{_N_PART_SIDE:04d}"
 
 
-def load_snapshot(snap_nr, source="machine_igm"):
+def load_snapshot(snap_nr, source="machine_igm", return_host_ids=False):
     """
     Load halo masses and positions from an HBT OrderedSubSnap catalogue.
 
@@ -33,29 +33,37 @@ def load_snapshot(snap_nr, source="machine_igm"):
         Snapshot index (0–59; snap 59 corresponds to z ≈ 3).
     source : {"machine_igm", "machine_cosma", "local"}
         Compute environment, used to resolve data paths via paths.py.
+    return_host_ids : bool
+        If True, also return the host halo ID array (HBT field "HostHaloId").
+        Objects sharing the same host_id belong to the same FoF group and
+        contribute to the one-halo term.
 
     Returns
     -------
-    masses : ndarray, shape (N,)
-        Peak halo masses (LastMaxMass) in solar masses.
+    log_masses : ndarray, shape (N,)
+        log10 peak halo masses (LastMaxMass) in solar masses.
     centres : ndarray, shape (3, N)
         Comoving most-bound-particle positions in Mpc (rows: x, y, z).
     redshift : float
         Redshift of the snapshot, read from the simulation output list.
+    host_ids : ndarray, shape (N,)  [only if return_host_ids=True]
+        Host FoF halo ID for each subhalo (HBT field "HostHaloId").
     """
     path_sim = get_input_path_HBT_data(source=source)
 
-    folder_hbt   = os.path.join(path_sim, _SIM_NAME, "HBT_compressed")
+    folder_hbt    = os.path.join(path_sim, _SIM_NAME, "HBT_compressed")
     redshift_file = os.path.join(path_sim, _SIM_NAME, "output_list.txt")
-    path_in      = os.path.join(folder_hbt, f"OrderedSubSnap_{snap_nr:03d}.hdf5")
+    path_in       = os.path.join(folder_hbt, f"OrderedSubSnap_{snap_nr:03d}.hdf5")
 
     redshift = float(np.loadtxt(redshift_file)[snap_nr])
 
     print(f"Loading snapshot {snap_nr} (z={redshift:.3f}) from {path_in}")
 
     with h5py.File(path_in, rdcc_nbytes=128 * 1024 * 1024, rdcc_nslots=10007) as f:
-        masses  = f["Subhalos/LastMaxMass"][:] * _HBT_MASS_UNIT
-        pos     = f["Subhalos/ComovingMostBoundPosition"][:]   # shape (N, 3)
+        masses   = f["Subhalos/LastMaxMass"][:] * _HBT_MASS_UNIT
+        pos      = f["Subhalos/ComovingMostBoundPosition"][:]   # shape (N, 3)
+        if return_host_ids:
+            host_ids = f["Subhalos/HostHaloId"][:]
 
     # Return positions as (3, N) — the convention used throughout this codebase.
     centres = np.asarray(pos.T, dtype=float)
@@ -64,5 +72,7 @@ def load_snapshot(snap_nr, source="machine_igm"):
           f"(box sanity: x/Lbox max = {centres[0].max() / _BOXSIZE_MPC:.4f})")
 
     log_masses = np.log10(masses)
-    
+
+    if return_host_ids:
+        return log_masses, centres, redshift, host_ids
     return log_masses, centres, redshift

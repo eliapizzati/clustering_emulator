@@ -40,6 +40,16 @@ Standalone analysis scripts that import from the library but are not part of the
 - `halomod` is an optional dependency, only needed for scripts in `scripts/`. Do not import it inside the library.
 - The `random` module (standard library) is used for bootstrap index drawing; `numpy.random` is used for random catalogue generation. Keep them separate and seeded.
 
+## One-halo / two-halo decomposition
+
+The decomposition `xi_2h = (DD_total - DD_1h) / RR - 1` requires DD_total and DD_1h to be computed on **exactly the same catalogue**. `create_correlation_function` has an internal subsampler (`max_size_subsampling`, default 1e6) that silently reduces the catalogue. If `compute_one_halo_pair_counts` is called on the full catalogue while Corrfunc sees only a subsample, DD_1h >> DD_total at small r and the decomposition breaks. **Always pre-subsample before calling both functions**, then pass `max_size_subsampling=MAX_N` to prevent re-subsampling inside `create_correlation_function`.
+
+**Corrfunc pair-counting convention**: `autocorr=1` counts each pair **twice** (both i→j and j→i). The analytical RR uses N₁×N₂/V, which is also double-counted. `compute_one_halo_pair_counts` applies `2 × counts` to match this convention.
+
+**HBT `HostHaloId` field**: in the FLAMINGO HBT_compressed outputs, `HostHaloId` is the FoF group identifier — it is **not** the subhalo's own `TrackId`, even for centrals. Subhalos sharing the same `HostHaloId` are in the same FoF group and constitute one-halo pairs. The `Depth` field gives nesting level (0 = top-level within its group, not necessarily the unique central). Data path is `/data3/pizzati/projects/swift_qso/data/HBT_runs_FLAMINGO/` on IGM.
+
+**At z~6 with low mass thresholds** (log M > 11), the FLAMINGO 2800 Mpc box contains ~19M subhalos. At r < 0.2 Mpc essentially all pairs are intra-halo — the total ξ at those scales is dominated by the one-halo term, not the two-halo bias signal. Use higher mass thresholds (log M > 12) or focus on r > 1 Mpc for meaningful two-halo comparison with halomod.
+
 ## Machines and paths
 
 Three compute environments are supported via `paths.py`:
