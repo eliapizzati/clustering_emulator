@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clustering_emulator"
+version = "0.1.0"
+description = "Compute (cross-)correlation functions and their errors for cosmological simulations"
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "Corrfunc",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
