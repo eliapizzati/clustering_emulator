@@ -8,7 +8,7 @@ import h5py
 from clustering_emulator.data_loader_simulation import load_snapshot, _BOXSIZE_MPC
 from clustering_emulator.compute_correlation import create_correlation_function
 
-from swift_qso_model.utils.cosmology import cosmo
+from qhtools.utils.cosmology import cosmo
 
 
 analysis = True
